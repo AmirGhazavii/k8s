@@ -1,8 +1,8 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
@@ -21,5 +21,23 @@ jobs:
     - name: Build Docker image
       run: docker build -t ${{ secrets.DOCKER_USERNAME }}/ghactions-demo:latest .
 
-    - name: Push image
+    - name: Push Docker image
       run: docker push ${{ secrets.DOCKER_USERNAME }}/ghactions-demo:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build   # یعنی این job بعد از build اجرا میشه
+
+    steps:
+    - name: Deploy on VM via SSH
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.VM_HOST }}
+        username: ${{ secrets.VM_USER }}
+        key: ${{ secrets.VM_SSH_KEY }}
+        port: 22
+        script: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/ghactions-demo:latest
+          docker stop ghactions-demo || true
+          docker rm ghactions-demo || true
+          docker run -d --name ghactions-demo -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/ghactions-demo:latest
